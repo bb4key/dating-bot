@@ -19,7 +19,7 @@ def build_profile_caption(user: dict) -> str:
 
     text = (
         f"{gender_icon} *{user['name']}*, {user.get('age', '?')} лет\n"
-        f"🏙️ {user.get('city', 'Не указан')}\n"
+        f"🗺️ {user.get('city', 'Не указан')}\n"
         f"🔍 Ищу: {looking_text}\n"
     )
     if user.get("about"):
@@ -88,10 +88,11 @@ async def edit_age_start(message: Message, state: FSMContext):
     await message.answer("Введи новый возраст:", reply_markup=cancel_kb())
 
 
-@router.message(EditProfile.choosing_field, F.text == "🏙️ Город")
+@router.message(EditProfile.choosing_field, F.text == "🗺️ Район")
 async def edit_city_start(message: Message, state: FSMContext):
     await state.set_state(EditProfile.city)
-    await message.answer("Введи новый город:", reply_markup=cancel_kb())
+    from keyboards import district_kb
+    await message.answer("Выбери свой район Осло 🗺️", reply_markup=district_kb())
 
 
 @router.message(EditProfile.choosing_field, F.text == "💬 О себе")
@@ -148,15 +149,16 @@ async def save_age(message: Message, state: FSMContext):
 
 @router.message(EditProfile.city)
 async def save_city(message: Message, state: FSMContext):
+    from keyboards import OSLO_DISTRICTS, district_kb
     if not message.text:
         return
     city = message.text.strip()
-    if len(city) < 2 or len(city) > 50:
-        await message.answer("Название города от 2 до 50 символов.")
+    if city not in OSLO_DISTRICTS:
+        await message.answer("Выбери район из кнопок ниже 👇", reply_markup=district_kb())
         return
     await db.update_user_field(message.from_user.id, "city", city)
     await state.set_state(EditProfile.choosing_field)
-    await message.answer(f"✅ Город обновлён: {city}", reply_markup=edit_profile_kb())
+    await message.answer(f"✅ Район обновлён: {city}, Oslo", reply_markup=edit_profile_kb())
 
 
 @router.message(EditProfile.about)

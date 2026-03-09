@@ -4,6 +4,14 @@ from aiogram.types import (
 )
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 
+# Районы Осло
+OSLO_DISTRICTS = [
+    "Sentrum", "Grünerløkka", "Frogner", "St. Hanshaugen",
+    "Sagene", "Gamle Oslo", "Bjerke", "Grorud",
+    "Stovner", "Alna", "Østensjø", "Nordstrand",
+    "Søndre Nordstrand", "Nordre Aker", "Ullern", "Vestre Aker",
+]
+
 
 # ─── REPLY KEYBOARDS ─────────────────────────────────────────────────────────
 
@@ -33,6 +41,17 @@ def looking_for_kb() -> ReplyKeyboardMarkup:
     return kb.as_markup(resize_keyboard=True)
 
 
+def district_kb() -> ReplyKeyboardMarkup:
+    kb = ReplyKeyboardBuilder()
+    for i in range(0, len(OSLO_DISTRICTS), 2):
+        row = [KeyboardButton(text=OSLO_DISTRICTS[i])]
+        if i + 1 < len(OSLO_DISTRICTS):
+            row.append(KeyboardButton(text=OSLO_DISTRICTS[i + 1]))
+        kb.row(*row)
+    kb.row(KeyboardButton(text="❌ Отмена"))
+    return kb.as_markup(resize_keyboard=True)
+
+
 def cancel_kb() -> ReplyKeyboardMarkup:
     kb = ReplyKeyboardBuilder()
     kb.row(KeyboardButton(text="❌ Отмена"))
@@ -56,7 +75,7 @@ def profile_active_kb(is_active: bool) -> ReplyKeyboardMarkup:
 def edit_profile_kb() -> ReplyKeyboardMarkup:
     kb = ReplyKeyboardBuilder()
     kb.row(KeyboardButton(text="📝 Имя"), KeyboardButton(text="🎂 Возраст"))
-    kb.row(KeyboardButton(text="🏙️ Город"), KeyboardButton(text="💬 О себе"))
+    kb.row(KeyboardButton(text="🗺️ Район"), KeyboardButton(text="💬 О себе"))
     kb.row(KeyboardButton(text="📸 Фото"))
     kb.row(KeyboardButton(text="◀️ Назад"))
     return kb.as_markup(resize_keyboard=True)
@@ -71,13 +90,6 @@ def back_kb() -> ReplyKeyboardMarkup:
 def chat_kb() -> ReplyKeyboardMarkup:
     kb = ReplyKeyboardBuilder()
     kb.row(KeyboardButton(text="🚪 Завершить чат"))
-    return kb.as_markup(resize_keyboard=True)
-
-
-def matches_kb() -> ReplyKeyboardMarkup:
-    kb = ReplyKeyboardBuilder()
-    kb.row(KeyboardButton(text="💬 Написать"))
-    kb.row(KeyboardButton(text="🏠 Главное меню"))
     return kb.as_markup(resize_keyboard=True)
 
 
@@ -141,5 +153,28 @@ def confirm_delete_kb() -> InlineKeyboardMarkup:
 
 def settings_kb() -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
+    kb.row(InlineKeyboardButton(text="🔍 Изменить: кого ищу", callback_data="settings_looking"))
+    kb.row(InlineKeyboardButton(text="👤 Изменить: мой пол", callback_data="settings_gender"))
     kb.row(InlineKeyboardButton(text="🗑️ Удалить анкету", callback_data="delete_profile"))
+    return kb.as_markup()
+
+
+def settings_looking_kb() -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    kb.row(
+        InlineKeyboardButton(text="👨 Парней", callback_data="set_looking:male"),
+        InlineKeyboardButton(text="👩 Девушек", callback_data="set_looking:female"),
+    )
+    kb.row(InlineKeyboardButton(text="💫 Всех", callback_data="set_looking:any"))
+    kb.row(InlineKeyboardButton(text="◀️ Назад", callback_data="settings_back"))
+    return kb.as_markup()
+
+
+def settings_gender_kb() -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    kb.row(
+        InlineKeyboardButton(text="👨 Парень", callback_data="set_gender:male"),
+        InlineKeyboardButton(text="👩 Девушка", callback_data="set_gender:female"),
+    )
+    kb.row(InlineKeyboardButton(text="◀️ Назад", callback_data="settings_back"))
     return kb.as_markup()
