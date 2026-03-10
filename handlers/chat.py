@@ -17,6 +17,15 @@ async def end_chat(message: Message, state: FSMContext):
 
     if partner_id:
         await db.clear_active_chat(partner_id)
+        try:
+            sender = await db.get_user(message.from_user.id)
+            await message._bot.send_message(
+                partner_id,
+                f"💔 {sender['name']} завершил(а) чат.",
+                reply_markup=main_menu_kb(),
+            )
+        except Exception:
+            pass
 
     await message.answer(
         "💔 Чат завершён. Возвращаю в главное меню.",
@@ -27,12 +36,13 @@ async def end_chat(message: Message, state: FSMContext):
 # ─── RELAY MESSAGES ──────────────────────────────────────────────────────────
 
 @router.message(
-    (F.text & ~F.text.startswith("/")) | F.photo | F.sticker | F.voice | F.video | F.video_note
+    (F.text & ~F.text.startswith("/")) | F.photo | F.sticker |
+    F.voice | F.video | F.video_note | F.audio | F.document | F.animation
 )
 async def relay_message(message: Message, bot: Bot, state: FSMContext):
     partner_id = await db.get_active_chat(message.from_user.id)
     if not partner_id:
-        return  # Let other handlers handle it
+        return
 
     if not await db.are_matched(message.from_user.id, partner_id):
         await db.clear_active_chat(message.from_user.id)
@@ -46,36 +56,35 @@ async def relay_message(message: Message, bot: Bot, state: FSMContext):
     sender_name = sender["name"] if sender else "Аноним"
 
     try:
+        # Для текста — добавляем имя отправителя
         if message.text:
             await bot.send_message(
                 partner_id,
-                f"💬 *{sender_name}*: {message.text}",
-                parse_mode="Markdown",
+                f"💬 <b>{sender_name}</b>: {message.text}",
+                parse_mode="HTML",
             )
-        elif message.photo:
-            caption = f"📸 *{sender_name}*"
-            if message.caption:
-                caption += f": {message.caption}"
-            await bot.send_photo(partner_id, message.photo[-1].file_id, caption=caption, parse_mode="Markdown")
-        elif message.sticker:
-            await bot.send_message(partner_id, f"🎭 *{sender_name}* прислал(а) стикер:")
-            await bot.send_sticker(partner_id, message.sticker.file_id)
-        elif message.voice:
-            await bot.send_message(partner_id, f"🎤 *{sender_name}* прислал(а) голосовое:")
-            await bot.send_voice(partner_id, message.voice.file_id)
-        elif message.video:
-            caption = f"🎥 *{sender_name}*"
-            if message.caption:
-                caption += f": {message.caption}"
-            await bot.send_video(partner_id, message.video.file_id, caption=caption, parse_mode="Markdown")
-        elif message.video_note:
-            await bot.send_message(partner_id, f"📹 *{sender_name}* прислал(а) кружочек:")
-            await bot.send_video_note(partner_id, message.video_note.file_id)
+        else:
+            # Для всех медиа — copy_message сохраняет оригинальный формат
+            # (видео не сжимается, кружочки остаются кружочками и т.д.)
+            if not message.video_note and not message.sticker:
+                # Шлём подпись с именем отдельным сообщением перед медиа
+                await bot.send_message(partner_id, f"📨 <b>{sender_name}</b>:", parse_mode="HTML")
 
-        await message.react([{"type": "emoji", "emoji": "👍"}])
+            await bot.copy_message(
+                chat_id=partner_id,
+                from_chat_id=message.chat.id,
+                message_id=message.message_id,
+            )
+
+        # Реакция-подтверждение
+        try:
+            await message.react([{"type": "emoji", "emoji": "👍"}])
+        except Exception:
+            pass
 
     except Exception as e:
-        if "blocked" in str(e).lower() or "deactivated" in str(e).lower():
+        err = str(e).lower()
+        if "blocked" in err or "deactivated" in err or "not found" in err:
             await db.clear_active_chat(message.from_user.id)
             await message.answer(
                 "😔 Собеседник недоступен. Чат завершён.",
